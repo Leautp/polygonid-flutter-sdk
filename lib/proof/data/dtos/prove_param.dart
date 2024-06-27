@@ -1,13 +1,15 @@
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
+
 class ProveParam {
-  final String circuitId;
   final String zKeyPath;
   final Uint8List wtns;
+  final RootIsolateToken rootIsolateToken;
 
   ProveParam(
-    this.circuitId,
     this.zKeyPath,
     this.wtns,
+    this.rootIsolateToken,
   );
 }

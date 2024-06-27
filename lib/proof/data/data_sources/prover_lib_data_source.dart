@@ -5,26 +5,38 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:injectable/injectable.dart';
 import 'package:polygonid_flutter_sdk/proof/data/dtos/prove_param.dart';
-import 'package:polygonid_flutter_sdk/proof/libs/prover/prover.dart';
+import 'package:flutter_rapidsnark/flutter_rapidsnark.dart';
 
 const _methodChannel = MethodChannel('polygonid_flutter_sdk');
 
 @injectable
 class ProverLibWrapper {
   Future<Map<String, dynamic>?> prover(
-      String circuitId, String zKeyPath, Uint8List wtnsBytes) {
-    return compute(_computeProve, ProveParam(circuitId, zKeyPath, wtnsBytes));
+    String zKeyPath,
+    Uint8List wtnsBytes,
+  ) {
+    final rootIsolateToken = RootIsolateToken.instance!;
+
+    return compute(
+      _computeProve,
+      ProveParam(zKeyPath, wtnsBytes, rootIsolateToken),
+    );
   }
 }
 
 ///
 Future<Map<String, dynamic>?> _computeProve(ProveParam param) async {
-  ProverLib proverLib = ProverLib();
-  return proverLib.proveZkeyFilePath(
-    param.circuitId,
-    param.zKeyPath,
-    param.wtns,
+  BackgroundIsolateBinaryMessenger.ensureInitialized(param.rootIsolateToken);
+
+  final result = await Rapidsnark().groth16ProveWithZKeyFilePath(
+    zkeyPath: param.zKeyPath,
+    witness: param.wtns,
   );
+
+  return {
+    "proof": jsonDecode(result.proof),
+    "pub_signals": jsonDecode(result.publicSignals),
+  };
 }
 
 class ProverLibDataSource {
@@ -34,27 +46,9 @@ class ProverLibDataSource {
 
   ///
   Future<Map<String, dynamic>?> prove(
-    String circuitId,
     String zKeyPath,
     Uint8List wtnsBytes,
   ) async {
-    if (Platform.isAndroid) {
-      final result = await _methodChannel.invokeMapMethod(
-        'prove',
-        {
-          'zKeyPath': zKeyPath,
-          'wtnsBytes': wtnsBytes,
-        },
-      );
-      result?['proof'] = jsonDecode(result['proof'] as String);
-      result?['pub_signals'] = jsonDecode(result['pub_signals'] as String);
-
-      return result?.cast<String, dynamic>();
-    } else {
-      final result =
-          await _proverLibWrapper.prover(circuitId, zKeyPath, wtnsBytes);
-
-      return result;
-    }
+    return _proverLibWrapper.prover(zKeyPath, wtnsBytes);
   }
 }

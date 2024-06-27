@@ -18,6 +18,14 @@ allprojects {
         google()
         mavenCentral()
         maven { url "https://jitpack.io" }
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/iden3/android-rapidsnark")
+            credentials {
+                username = "username"
+                password = "token"
+            }
+        }
     }
 }
 
